@@ -1,70 +1,42 @@
-from binance.client import Client
-import pandas as pd
-from client import binance_client
 from datetime import date, timedelta
+from utils import fetch_historical_data
 
 
-def fetch_historical_data(symbol, interval, start_date, end_date):
-    """Fetch historical price data for a symbol."""
-    klines = binance_client.get_historical_klines(
-        symbol, interval, start_date, end_date
-    )
-    df = pd.DataFrame(
-        klines,
-        columns=[
-            "open_time",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-            "close_time",
-            "quote_asset_volume",
-            "number_of_trades",
-            "taker_buy_base_asset_volume",
-            "taker_buy_quote_asset_volume",
-            "ignore",
-        ],
-    )
-    df["close"] = pd.to_numeric(df["close"])
-    return df
-
-
+# Use this for more long term trend
 def calculate_sma(prices, window):
     """Calculate Simple Moving Average."""
     return prices.rolling(window=window).mean()
 
 
-def check_trend(symbol):
-    """Check the trend by comparing short-term SMA with long-term SMA."""
-    now = date.today()
-    initial_date = now - timedelta(days=35)  # Fetch data for the past 35 days
-    df = fetch_historical_data(symbol, Client.KLINE_INTERVAL_1DAY, initial_date, now)
-    df["sma_short"] = calculate_sma(df["close"], 7)  # 7-day SMA
-    df["sma_long"] = calculate_sma(df["close"], 25)  # 25-day SMA
+# Use this for scalping as its more precise
+def calculate_ema(prices, window):
+    """Calculate Exponential Moving Average."""
+    return prices.ewm(span=window, adjust=False).mean()
 
-    # Check the latest values to determine the trend
-    if df["sma_short"].iloc[-1] > df["sma_long"].iloc[-1]:
-        return "BULLISH"
-    elif df["sma_short"].iloc[-1] < df["sma_long"].iloc[-1]:
-        return "BEARISH"
-    else:
+
+# TODO: Check global trend for week/month/4h/day so that its not blocking for days
+# TODO: Adjust entry points around EMA
+def check_trend(df, index=None):
+    """Determine the trend based on EMAs; Index is used for backtesting."""
+    # Default EMA windows
+    short_window = 9
+    long_window = 25
+
+    if index is not None and index < long_window:
+        # Not enough data for analysis if a specific index is provided and is less than the long window
         return "NEUTRAL"
 
+    # Select data up to the specified index if provided, otherwise use the full DataFrame
+    data_to_use = df["close"][:index] if index is not None else df["close"]
 
-def check_trend_for_date(df, index, short_window=7, long_window=25):
-    """Determine the trend for a specific date in the DataFrame based on SMAs."""
-    if index < long_window:  # Not enough data for analysis
-        return "NEUTRAL"
+    # Calculate EMAs
+    short_ema = calculate_ema(data_to_use, short_window)
+    long_ema = calculate_ema(data_to_use, long_window)
 
-    # Calculate SMAs up to the current point
-    short_sma = df["close"][:index].rolling(window=short_window).mean().iloc[-1]
-    long_sma = df["close"][:index].rolling(window=long_window).mean().iloc[-1]
-
-    # Determine trend
-    if short_sma > long_sma:
+    # Determine trend based on the last values of EMAs
+    if short_ema.iloc[-1] > long_ema.iloc[-1]:
         return "BULLISH"
-    elif short_sma < long_sma:
+    elif short_ema.iloc[-1] < long_ema.iloc[-1]:
         return "BEARISH"
     else:
         return "NEUTRAL"
