@@ -2,7 +2,7 @@ import time
 from trend import check_trend
 from trade import trade_symbol
 from backtest import backtest_symbol
-from utils import get_top_20_symbols, get_df
+from utils import get_top_20_symbols, get_df, get_backtest_data
 
 
 # TODO: Limit trading to max 10 open orders, create a new func
@@ -29,20 +29,38 @@ def main():
 
 
 def main_backtest():
-    # TODO: Add here list of bull/bear/sideways market dates and symbols
-    # backtest("BTCUSDT", "2023-01-01", "2023-12-31")
-    start_date = "2023-10-01"
-    end_date = "2023-12-31"
-    total_profit_loss = 0
-    symbol = "BTCUSDT"
-    # symbol = "ETHUSDT"
+    """Backtest a trading strategy for multiple symbols."""
+    results = []
+    backtest_data = get_backtest_data()
     try:
-        # profit_loss = backtest_symbol(symbol, start_date, end_date)
-        profit_loss = backtest_symbol(symbol, start_date, end_date)
-        total_profit_loss += profit_loss
-        print(f"Backtest result for {symbol}: Profit/Loss = {profit_loss}")
+        for data in backtest_data:
+            symbol = data["symbol"]
+            start_date = data["start_date"]
+            end_date = data["end_date"]
+            trend = data["trend"]
+            print("--------------------")
+            print(f"Backtesting {symbol} from {start_date} to {end_date}")
+            print("--------------------")
+            profit_loss = backtest_symbol(symbol, start_date, end_date)
+            results.append(
+                {
+                    "symbol": symbol,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "trend": trend,
+                    "profit_loss": profit_loss,
+                }
+            )
+            print("\n" * 2)
     except Exception as e:
         print(f"An error occurred with {symbol}: {e}")
+
+    # Log the consolidated backtest results
+    total_profit_loss = sum(result["profit_loss"] for result in results)
+    for result in results:
+        print(
+            f"Backtest result for {result['symbol']} ({result['start_date']} to {result['end_date']}); trend: {result['trend']}: Profit/Loss = {result['profit_loss']}"
+        )
 
     print(f"Total Profit/Loss for all symbols: {total_profit_loss}")
 

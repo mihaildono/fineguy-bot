@@ -48,3 +48,21 @@ def get_df(symbol):
     end_date = date.today()
     start_date = end_date - timedelta(days=35)
     return fetch_historical_data(symbol, start_date, end_date)
+
+
+def get_backtest_data():
+    """Returns a dictionary of backtest data for multiple symbols."""
+    return [
+        {
+            "symbol": "BTCUSDT",
+            "start_date": "2023-10-01",
+            "end_date": "2023-12-31",
+            "trend": "BULLISH",
+        },
+        {
+            "symbol": "ETHUSDT",
+            "start_date": "2023-10-01",
+            "end_date": "2023-12-31",
+            "trend": "BULLISH",
+        },
+    ]
