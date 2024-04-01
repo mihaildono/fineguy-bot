@@ -3,8 +3,7 @@ from trend import fetch_historical_data, check_trend
 
 
 def backtest_symbol(symbol, start_date, end_date):
-    """Backtest a trading strategy for a symbol with simulated trailing stop logic,
-    where trailing stop loss is activated based on a specified profit in position."""
+    """Backtest a trading strategy for a symbol with simulated trailing stop logic"""
     df = fetch_historical_data(symbol, start_date, end_date)
 
     # Initial conditions
