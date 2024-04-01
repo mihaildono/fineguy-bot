@@ -39,7 +39,9 @@ def main_backtest():
             end_date = data["end_date"]
             trend = data["trend"]
             print("--------------------")
-            print(f"Backtesting {symbol} from {start_date} to {end_date}")
+            print(
+                f"Backtesting {symbol} from {start_date} to {end_date} with trend: {trend}"
+            )
             print("--------------------")
             profit_loss = backtest_symbol(symbol, start_date, end_date)
             results.append(
