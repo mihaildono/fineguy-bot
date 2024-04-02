@@ -5,8 +5,8 @@ from backtest import backtest_symbol
 from utils import get_top_20_symbols, get_df, get_backtest_data
 
 
-# TODO: Limit trading to max 10 open orders, create a new func
 def main():
+    """Main function to run the trading bot."""
     while True:
         top_20_symbols = get_top_20_symbols()
         for symbol in top_20_symbols:
@@ -28,6 +28,7 @@ def main():
         time.sleep(60 * 15)  # Example: 15 minutes
 
 
+# add Backtesting.py
 def main_backtest():
     """Backtest a trading strategy for multiple symbols."""
     results = []
