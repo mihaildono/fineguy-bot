@@ -7,69 +7,69 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 from backtesting import Backtest, Strategy
+from backtesting.lib import crossover
+from utils import load_csv
 
 
-def EMA(data, span):
-    return pd.Series(data).ewm(span=span, adjust=False).mean().bfill()
+def EMA(values, span):
+    return pd.Series(values).ewm(span=span, adjust=False).mean().bfill()
 
 
-class TrailingStopStrategy(Strategy):
-    trade_amount = 100  # Amount in dollars for each trade
-    entry_price = 0
-    entry_date = None  # To keep track of the entry date
-    last_high_price = 0  # Track the highest price since buying
-    trailing_stop_pct = 1  # Stop loss to 1% loss
-    profit_activation_pct = 2  # Activate trailing stop after 2% profit
-    is_trailing_stop_activated = False  # Flag to track trailing stop activation
+def SMA(values, span):
+    return pd.Series(values).rolling(span).mean()
 
+
+class TradingStrategy(Strategy):
     def init(self):
-        self.ema_short = self.I(lambda x: EMA(x, 9), self.data.Close)
-        self.ema_long = self.I(lambda x: EMA(x, 21), self.data.Close)
+        self.sma_short = self.I(lambda x: EMA(x, 9), self.data.Close)
+        self.sma_long = self.I(lambda x: EMA(x, 21), self.data.Close)
+        self.in_position = False
+        self.buy_price = None
+        self.highest_close_since_buy = 0
+        self.stop_price = None  # Initialize stop price
 
     def next(self):
-        price = self.data.Close[-1]
-        date = self.data.index[-1]  # Get the current date
-        quantity = self.trade_amount / price
+        if not self.in_position and crossover(self.sma_short, self.sma_long):
+            self.buy()
+            self.in_position = True
+            self.buy_price = self.data.Close[-1]  # Store the buy price
+            self.highest_close_since_buy = self.data.Close[
+                -1
+            ]  # Initialize with the current close price
+            self.stop_price = None  # Reset stop price
 
-        if not self.position and self.ema_short[-1] > self.ema_long[-1]:
-            self.buy(size=quantity)
-            self.entry_price = price
-            self.entry_date = date  # Record entry date
-            self.last_high_price = price  # Initialize last high price
-            print(f"Bought at: {price} on {date}")
-            return
-
-        current_profit_pct = (price - self.entry_price) / self.entry_price * 100
-        # Update the last high price if the current price is higher
-        if price > self.last_high_price:
-            self.last_high_price = price
-            # Check if profit activation condition is met
-            if current_profit_pct > self.profit_activation_pct:
-                self.is_trailing_stop_activated = True
-                self.trailing_stop_loss = self.last_high_price * (
-                    1 - self.trailing_stop_pct / 100
-                )
-        # Check to close the position based on the trailing stop loss
-        if self.is_trailing_stop_activated and price < self.trailing_stop_loss:
-            self.position.close()
-            profit = (price - self.entry_price) * quantity  # Calculate profit
-            print(
-                f"Sold at: {price} on {date}, Profit: {profit}, Profit%: {current_profit_pct}"
-            )
-            self.is_trailing_stop_activated = (
-                False  # Reset flag after closing the position
+        if self.in_position:
+            current_price = self.data.Close[-1]
+            self.highest_close_since_buy = max(
+                self.highest_close_since_buy, current_price
             )
 
+            if self.buy_price:  # Ensure buy_price is not None
+                profit_since_buy = (
+                    current_price / self.buy_price
+                ) - 1  # Current profit since the buy
 
-# yahoo finance Sep 17, 2014 - Apr 02, 2024, Daily BTC
-df = pd.read_csv("data.csv", parse_dates=["Date"], index_col="Date")
-start_date = "2015-01-01"
-end_date = "2017-01-01"
-filtered_df = df.loc[start_date:end_date]
+                # If profit has reached at least 2%, update the stop price
+                if profit_since_buy >= 0.02:
+                    # Update the stop price to be 1% below the highest close since buying
+                    self.stop_price = self.highest_close_since_buy * 0.99
 
-bt = Backtest(filtered_df, TrailingStopStrategy, cash=10000, commission=0.002)
+                # If a stop price has been set and the current price is below the stop price, sell
+                if self.stop_price and current_price <= self.stop_price:
+                    self.position.close()
+                    self.in_position = False  # Reset position flag
+                    self.buy_price = None  # Reset buy price
+                    self.stop_price = None  # Reset stop price
+
+
+df = load_csv()
+bt = Backtest(
+    df,
+    TradingStrategy,
+    cash=100000,
+    commission=0.001,
+)
 results = bt.run()
 print(results)
-
 # Visualize the trades within the selected period
 bt.plot()

@@ -1,6 +1,7 @@
 import pandas as pd
 from client import binance_client
 from datetime import date, timedelta
+import datetime
 
 
 def get_top_20_symbols():
@@ -16,31 +17,76 @@ def get_top_20_symbols():
     return top_20_symbols
 
 
-def fetch_historical_data(symbol, start_date, end_date):
-    """Fetch historical price data for a symbol."""
-    # 5m intervals for scalping
-    klines = binance_client.get_historical_klines(symbol, "5m", start_date, end_date)
+def fetch_historical_data(symbol, start_date, end_date, interval="5m", csv=False):
+    """Fetch historical price data for a symbol and optionally save it as a CSV for backtesting."""
+    # Example: fetch_historical_data("BTCUSDT", "2023-11-01", "2023-12-01", csv=True)
+    # Usage: prices = pd.read_csv("data.csv", index_col="Date", parse_dates=True)
+    klines = binance_client.get_historical_klines(
+        symbol, interval, start_date, end_date
+    )
     df = pd.DataFrame(
         klines,
         columns=[
-            "open_time",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-            "close_time",
-            "quote_asset_volume",
-            "number_of_trades",
-            "taker_buy_base_asset_volume",
-            "taker_buy_quote_asset_volume",
-            "ignore",
+            "Open_time",
+            "Open",
+            "High",
+            "Low",
+            "Close",
+            "Volume",
+            "Close_time",
+            "Quote_asset_volume",
+            "Number_of_trades",
+            "Taker_buy_base_asset_volume",
+            "Taker_buy_quote_asset_volume",
+            "Ignore",
         ],
     )
-    df["close"] = pd.to_numeric(df["close"])
-    # Convert 'open_time' to datetime format
-    df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
+
+    # Convert 'Open_time' to datetime format and set as index
+    df["Date"] = pd.to_datetime(df["Open_time"], unit="ms")
+    df.set_index("Date", inplace=True)
+
+    # Drop unnecessary columns
+    df.drop(
+        columns=[
+            "Open_time",
+            "Close_time",
+            "Quote_asset_volume",
+            "Number_of_trades",
+            "Taker_buy_base_asset_volume",
+            "Taker_buy_quote_asset_volume",
+            "Ignore",
+        ],
+        inplace=True,
+    )
+
+    # Format the DataFrame according to the screenshot: round to 8 decimal places for prices and volume
+    df["Open"] = df["Open"].round(8)
+    df["High"] = df["High"].round(8)
+    df["Low"] = df["Low"].round(8)
+    df["Close"] = df["Close"].round(8)
+    df["Volume"] = df["Volume"].round(8)
+
+    # Reset index to include Date and Time in the CSV
+    df.reset_index(inplace=True)
+
+    if csv:
+        df.to_csv("data.csv", index=True)
+        print("Data saved")
+
     return df
+
+
+def load_csv(start_date=None, end_date=None):
+    """Load historical data from a CSV file."""
+    df = pd.read_csv("data.csv", index_col="Date", parse_dates=True)
+    if start_date and end_date:
+        return df.loc[start_date:end_date]
+
+    return df
+
+
+# fetch_historical_data("BTCUSDT", "2023-10-01", "2023-12-31", csv=True)
 
 
 def get_df(symbol):
