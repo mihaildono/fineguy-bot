@@ -1,7 +1,6 @@
 import pandas as pd
 from client import binance_client
 from datetime import date, timedelta
-import datetime
 
 
 def get_top_20_symbols():

@@ -33,3 +33,26 @@ def connect():
     )
     ws.on_open = on_open
     ws.run_forever()
+
+
+# Alternative
+# from binance.client import Client
+# from binance.websockets import BinanceSocketManager
+# from twisted.internet import reactor
+
+
+# def process_message(msg):
+#     """Process live data and apply trading strategy."""
+#     # This function will be called every time new data is received.
+#     print("Message type:", msg["e"])
+#     print(msg)
+#     # Here, you'd insert your trading logic, deciding whether to buy or sell based on the incoming data.
+
+#     bm = BinanceSocketManager(client)
+
+#     # For this example, we're subscribing to live ticker data for BTCUSDT. Adjust as needed.
+#     conn_key = bm.start_symbol_ticker_socket("BTCUSDT", process_message)
+
+#     # Start the WebSocket
+#     bm.start()
+#     reactor.run()

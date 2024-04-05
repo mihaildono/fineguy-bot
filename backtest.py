@@ -1,105 +1,67 @@
-from binance.client import Client
-from trend import fetch_historical_data, check_trend
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
-def open_position(position, entry_price, trade_amount, row):
-    """Open a long or short position."""
-    print(f"{position.capitalize()} entry at {entry_price}, Date: {row['open_time']}")
-    quantity = trade_amount / entry_price
-    return entry_price, quantity
+from backtesting import Backtest, Strategy
+from backtesting.lib import crossover
+
+from utils import load_csv
+from trend import EMA
 
 
-def update_peak_profit(
-    current_profit,
-    peak_profit,
-    trade_amount,
-    profit_percentage,
-    trailing_stop_activated,
-):
-    """Update peak profit and check for trailing stop activation."""
-    if current_profit > peak_profit:
-        peak_profit = current_profit
-        if (
-            peak_profit >= trade_amount * (profit_percentage / 100)
-            and not trailing_stop_activated
-        ):
-            trailing_stop_activated = True
-            print("Trailing stop activated")
-    return peak_profit, trailing_stop_activated
+class TradingStrategy(Strategy):
+    def init(self):
+        self.sma_short = self.I(lambda x: EMA(x, 9), self.data.Close)
+        self.sma_long = self.I(lambda x: EMA(x, 21), self.data.Close)
+        self.in_position = False
+        self.buy_price = None
+        self.highest_close_since_buy = 0
+        self.stop_price = None  # Initialize stop price
 
+    def next(self):
+        if not self.in_position and crossover(self.sma_short, self.sma_long):
+            self.buy()
+            self.in_position = True
+            self.buy_price = self.data.Close[-1]  # Store the buy price
+            self.highest_close_since_buy = self.data.Close[
+                -1
+            ]  # Initialize with the current close price
+            self.stop_price = None  # Reset stop price
 
-def close_position(position, exit_price, current_profit, row):
-    """Close the current position."""
-    print(
-        f"Exited {position} at {exit_price}, Profit: {current_profit}, Date: {row['open_time']}"
-    )
-    print("Exited due to trailing stop")
-    print("---------------------------------")
-    return current_profit
-
-
-def calculate_current_profit(position, row, entry_price, quantity):
-    """Calculate the current profit based on the position."""
-    return (
-        (row["close"] - entry_price) * quantity
-        if position == "long"
-        else (entry_price - row["close"]) * quantity
-    )
-
-
-def backtest_symbol(symbol, start_date, end_date):
-    """Backtest a trading strategy for a symbol with simulated trailing stop logic."""
-    df = fetch_historical_data(symbol, start_date, end_date)
-
-    # Initial conditions
-    trade_amount = 100
-    profit_percentage = 0.5
-    initial_balance = 10000
-    balance = initial_balance
-    position = None
-    entry_price = 0
-    quantity = 0
-    peak_profit = 0
-    trailing_stop_activated = False
-
-    for index, row in df.iterrows():
-        trend = check_trend(df, index)
-
-        if trend == "BULLISH" and position is None:
-            entry_price, quantity = open_position(
-                "long", row["close"], trade_amount, row
-            )
-            position = "long"
-            peak_profit = 0
-            trailing_stop_activated = False
-
-        if trend == "BEARISH" and position is None:
-            entry_price, quantity = open_position(
-                "short", row["close"], trade_amount, row
-            )
-            position = "short"
-            peak_profit = 0
-            trailing_stop_activated = False
-
-        if position:
-            current_profit = calculate_current_profit(
-                position, row, entry_price, quantity
-            )
-            peak_profit, trailing_stop_activated = update_peak_profit(
-                current_profit,
-                peak_profit,
-                trade_amount,
-                profit_percentage,
-                trailing_stop_activated,
+        if self.in_position:
+            current_price = self.data.Close[-1]
+            self.highest_close_since_buy = max(
+                self.highest_close_since_buy, current_price
             )
 
-            if trailing_stop_activated and (peak_profit - current_profit) >= (
-                trade_amount * (profit_percentage / 100)
-            ):
-                balance += close_position(position, row["close"], current_profit, row)
-                position = None
+            if self.buy_price:  # Ensure buy_price is not None
+                profit_since_buy = (
+                    current_price / self.buy_price
+                ) - 1  # Current profit since the buy
 
-    total_profit_loss = balance - initial_balance
-    print()
-    print(f"Backtest complete. Total Profit/Loss: {total_profit_loss}")
-    return total_profit_loss
+                # If profit has reached at least 2%, update the stop price
+                if profit_since_buy >= 0.02:
+                    # Update the stop price to be 1% below the highest close since buying
+                    self.stop_price = self.highest_close_since_buy * 0.99
+
+                # If a stop price has been set and the current price is below the stop price, sell
+                if self.stop_price and current_price <= self.stop_price:
+                    self.position.close()
+                    self.in_position = False  # Reset position flag
+                    self.buy_price = None  # Reset buy price
+                    self.stop_price = None  # Reset stop price
+
+
+df = load_csv()
+bt = Backtest(
+    df,
+    TradingStrategy,
+    cash=100000,
+    commission=0.001,
+)
+results = bt.run()
+print(results)
+# Visualize the trades within the selected period
+bt.plot()
