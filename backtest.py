@@ -5,23 +5,25 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 from backtesting import Backtest, Strategy
-from backtesting.lib import crossover
 
 from utils import load_csv
-from trend import EMA
+from trend import EMA, PSAR
+from plot import plot
 
 
 class TradingStrategy(Strategy):
     def init(self):
-        self.sma_short = self.I(lambda x: EMA(x, 9), self.data.Close)
-        self.sma_long = self.I(lambda x: EMA(x, 21), self.data.Close)
+        self.ema = self.I(EMA, self.data.Close, 200)
+        self.psar = self.I(PSAR, self.data)
         self.in_position = False
         self.buy_price = None
         self.highest_close_since_buy = 0
         self.stop_price = None  # Initialize stop price
 
     def next(self):
-        if not self.in_position and crossover(self.sma_short, self.sma_long):
+        is_over_psar = self.psar[-1] > self.data.Close[-1]
+        is_under_ema = self.ema[-1] < self.data.Close[-1]
+        if not self.in_position and is_over_psar and is_under_ema:
             self.buy()
             self.in_position = True
             self.buy_price = self.data.Close[-1]  # Store the buy price
@@ -64,4 +66,5 @@ bt = Backtest(
 results = bt.run()
 print(results)
 # Visualize the trades within the selected period
-bt.plot()
+bt.plot(resample=False)
+plot(results, df)
