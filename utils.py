@@ -76,6 +76,9 @@ def fetch_historical_data(symbol, start_date, end_date, interval="5m", csv=False
     return df
 
 
+fetch_historical_data("DOGEUSDT", "2023-11-01", "2023-12-01", csv=True)
+
+
 def load_csv(start_date=None, end_date=None):
     """Load historical data from a CSV file."""
     df = pd.read_csv("data.csv", index_col="Date", parse_dates=True)
@@ -83,9 +86,6 @@ def load_csv(start_date=None, end_date=None):
         return df.loc[start_date:end_date]
 
     return df
-
-
-# fetch_historical_data("BTCUSDT", "2023-10-01", "2023-12-31", csv=True)
 
 
 def get_df(symbol):

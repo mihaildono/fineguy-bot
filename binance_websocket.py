@@ -2,6 +2,8 @@ import websocket
 import json
 
 
+# TODO: start listening for data and collecting data points
+# Each socket is predefined
 def on_message(ws, message):
     data = json.loads(message)
     print("Received data:")

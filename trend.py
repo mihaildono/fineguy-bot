@@ -64,8 +64,8 @@ def PSAR(data, af_start=0.02, af_increment=0.02, af_max=0.2):
     return sar
 
 
-def get_trend(price, ema, psar):
+def get_trend(close_price, ema, psar):
     """Determine the trend based on the EMA and PSAR indicators."""
-    is_under_psar = psar < price
-    is_under_ema = ema < price
-    return is_under_ema and is_under_psar
+    is_positive_trend = close_price > ema and close_price > psar
+    is_negative_trend = close_price < ema and close_price < psar
+    return is_positive_trend, is_negative_trend
