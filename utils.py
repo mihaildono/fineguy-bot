@@ -111,3 +111,9 @@ def get_backtest_data():
             "trend": "BULLISH",
         },
     ]
+
+
+def calculate_trade_size(current_price):
+    """Calculate the size of a trade for $20 based on the current price."""
+    trade_size = 20 / current_price
+    return trade_size

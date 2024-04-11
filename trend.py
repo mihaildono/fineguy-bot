@@ -62,3 +62,10 @@ def PSAR(data, af_start=0.02, af_increment=0.02, af_max=0.2):
             sar[i] = max(sar[i], high[i], high[i - 1] if i > 0 else high[i])
 
     return sar
+
+
+def get_trend(price, ema, psar):
+    """Determine the trend based on the EMA and PSAR indicators."""
+    is_under_psar = psar < price
+    is_under_ema = ema < price
+    return is_under_ema and is_under_psar

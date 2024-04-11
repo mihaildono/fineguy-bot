@@ -10,6 +10,8 @@ from utils import load_csv
 from trend import EMA, PSAR
 from plot import plot
 
+from trend import get_trend
+
 
 class TradingStrategy(Strategy):
     def init(self):
@@ -21,9 +23,8 @@ class TradingStrategy(Strategy):
         self.stop_price = None  # Initialize stop price
 
     def next(self):
-        is_over_psar = self.psar[-1] > self.data.Close[-1]
-        is_under_ema = self.ema[-1] < self.data.Close[-1]
-        if not self.in_position and is_over_psar and is_under_ema:
+        is_positive_trend = get_trend(self.data.Close[-1], self.ema[-1], self.psar[-1])
+        if not self.in_position and is_positive_trend:
             self.buy()
             self.in_position = True
             self.buy_price = self.data.Close[-1]  # Store the buy price
@@ -58,11 +59,8 @@ class TradingStrategy(Strategy):
 
 df = load_csv()
 bt = Backtest(
-    df,
-    TradingStrategy,
-    cash=100000,
-    commission=0.001,
-)
+    df, TradingStrategy, cash=100000
+)  # Can reduce cash if its a coin with less value
 results = bt.run()
 print(results)
 # Visualize the trades within the selected period
