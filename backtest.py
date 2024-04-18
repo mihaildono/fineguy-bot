@@ -1,3 +1,11 @@
+from utils import load_csv
+from trend import EMA, PSAR
+from plot import plot
+
+from trend import get_trend
+from utils import calculate_trade_size
+
+
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -5,13 +13,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 from backtesting import Backtest, Strategy
-
-from utils import load_csv
-from trend import EMA, PSAR
-from plot import plot
-
-from trend import get_trend
-from utils import calculate_trade_size
 
 
 class TradingStrategy(Strategy):

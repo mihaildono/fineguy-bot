@@ -2,17 +2,16 @@ import pandas as pd
 import numpy as np
 
 
-def EMA(values, span):
-    """Calculate the Exponential Moving Average (EMA) of a series of values."""
-    return pd.Series(values).ewm(span=span, adjust=False).mean().bfill()
+def EMA(prices, span):
+    """Calculate the Exponential Moving Average (EMA)."""
+    return pd.Series(prices).ewm(span=span, adjust=False).mean().bfill()
 
 
-def SMA(values, span):
-    """Calculate the Simple Moving Average (SMA) of a series of values."""
-    return pd.Series(values).rolling(span).mean()
+def SMA(prices, span):
+    """Calculate the Simple Moving Average (SMA)."""
+    return pd.Series(prices).rolling(span).mean()
 
 
-# TODO: we should take PSAR into account after 3 ticks
 def PSAR(data, af_start=0.02, af_increment=0.02, af_max=0.2):
     """
     Calculates the Parabolic SAR for a dataset.

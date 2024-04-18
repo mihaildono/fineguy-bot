@@ -1,60 +1,65 @@
-import websocket
-import json
+import datetime
+from binance.streams import ThreadedWebsocketManager
+import pandas as pd
+from trend import SMA
 
 
-# TODO: start listening for data and collecting data points
-# Each socket is predefined
-def on_message(ws, message):
-    data = json.loads(message)
-    print("Received data:")
-    print(data)
+# TODO: add a queue or callback to receive data
+def process_message(msg, prices_df):
+    """Closure that processes incoming WebSocket messages and updates the SMA calculation."""
+    print(msg)
+    if msg["e"] == "error":
+        print(msg["m"])
+    else:
+        # TODO: extract this in a function
+        # Extract full kline data from the message
+        kline = msg["k"]
+        close_time = kline["t"]
+        open_price = float(kline["o"])
+        high_price = float(kline["h"])
+        low_price = float(kline["l"])
+        close_price = float(kline["c"])
+        volume = float(kline["v"])
+        number_of_trades = kline["n"]
+        taker_buy_base_asset_volume = float(kline["V"])
+        taker_buy_quote_asset_volume = float(kline["Q"])
+
+        # Create a new DataFrame row from the extracted data
+        new_row = pd.DataFrame(
+            {
+                "Open": [open_price],
+                "High": [high_price],
+                "Low": [low_price],
+                "Close": [close_price],
+                "Volume": [volume],
+                "Number of Trades": [number_of_trades],
+                "Taker Buy Base Asset Volume": [taker_buy_base_asset_volume],
+                "Taker Buy Quote Asset Volume": [taker_buy_quote_asset_volume],
+            }
+        )
+
+        # Append to the historical DataFrame and ensure it does not exceed 1000 entries
+        prices_df = pd.concat([prices_df, new_row], ignore_index=True)
+        if len(prices_df) > 1000:
+            prices_df = prices_df.iloc[-1000:]  # Keep only the latest 1000 entries
+
+        sma_values = SMA(prices_df["Close"], 5)
+        print(
+            f"Latest SMA: {sma_values.iloc[-1]}, Latest Price: {close_price}, Time: {datetime.datetime.fromtimestamp(close_time/1000).strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+        return prices_df
 
 
-def on_error(ws, error):
-    print(error)
+def run_websocket(initial_prices):
+    twm = ThreadedWebsocketManager()
+    twm.start()
+    symbol = "BNBBTC"
 
-
-def on_close(ws):
-    print("### closed ###")
-
-
-def on_open(ws):
-    print("Opened connection")
-
-    # Subscribe to the BTCUSDT ticker
-    subscribe_message = {"method": "SUBSCRIBE", "params": ["btcusdt@ticker"], "id": 1}
-
-    ws.send(json.dumps(subscribe_message))
-
-
-def connect():
-    websocket.enableTrace(True)
-    binance_socket = "wss://stream.binance.com:9443/ws/btcusdt@miniTicker"
-    ws = websocket.WebSocketApp(
-        binance_socket, on_message=on_message, on_error=on_error, on_close=on_close
+    print("Starting WebSocket...")
+    twm.start_kline_socket(
+        callback=(lambda msg: process_message(msg, initial_prices)),
+        symbol=symbol,
     )
-    ws.on_open = on_open
-    ws.run_forever()
-
-
-# Alternative
-# from binance.client import Client
-# from binance.websockets import BinanceSocketManager
-# from twisted.internet import reactor
-
-
-# def process_message(msg):
-#     """Process live data and apply trading strategy."""
-#     # This function will be called every time new data is received.
-#     print("Message type:", msg["e"])
-#     print(msg)
-#     # Here, you'd insert your trading logic, deciding whether to buy or sell based on the incoming data.
-
-#     bm = BinanceSocketManager(client)
-
-#     # For this example, we're subscribing to live ticker data for BTCUSDT. Adjust as needed.
-#     conn_key = bm.start_symbol_ticker_socket("BTCUSDT", process_message)
-
-#     # Start the WebSocket
-#     bm.start()
-#     reactor.run()
+    print("WebSocket started. Joining...")
+    twm.join()
