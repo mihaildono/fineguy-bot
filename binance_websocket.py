@@ -1,5 +1,4 @@
 from binance.streams import ThreadedWebsocketManager
-from binance import Client
 import pandas as pd
 from trend import SMA
 
@@ -57,6 +56,7 @@ def alt_messate(msg):
     print(msg)
 
 
+# TODO: Add support for multiple coins
 def run_websocket(initial_prices):
     twm = ThreadedWebsocketManager()
     symbol = "BNBUSDT"
