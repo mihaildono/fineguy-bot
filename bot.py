@@ -4,10 +4,10 @@ from api import fetch_intial_data
 
 def run_bot():
     """Run the trading bot."""
-    # Modify this list with coins of your choiec
-    trading_coins = ["BTC", "ETH"]
-    data = fetch_intial_data(trading_coins)
-    run_websocket(data)
+    # Modify this list with coins of your choice
+    trading_coins = ["BNB"]
+    initial_prices = fetch_intial_data(trading_coins)
+    run_websocket(initial_prices)
 
 
 run_bot()

@@ -1,16 +1,18 @@
-import datetime
 from binance.streams import ThreadedWebsocketManager
+from binance import Client
 import pandas as pd
 from trend import SMA
 
 
-# TODO: add a queue or callback to receive data
 def process_message(msg, prices_df):
     """Closure that processes incoming WebSocket messages and updates the SMA calculation."""
-    print(msg)
+    # Kline is not closed and we exit
+    if msg["k"]["x"] is False:
+        return
     if msg["e"] == "error":
         print(msg["m"])
     else:
+        print(msg)
         # TODO: extract this in a function
         # Extract full kline data from the message
         kline = msg["k"]
@@ -43,23 +45,32 @@ def process_message(msg, prices_df):
         if len(prices_df) > 1000:
             prices_df = prices_df.iloc[-1000:]  # Keep only the latest 1000 entries
 
-        sma_values = SMA(prices_df["Close"], 5)
-        print(
-            f"Latest SMA: {sma_values.iloc[-1]}, Latest Price: {close_price}, Time: {datetime.datetime.fromtimestamp(close_time/1000).strftime('%Y-%m-%d %H:%M:%S')}"
-        )
+        sma_values = SMA(prices_df["Close"], 9)
+        print(f"Latest SMA: {sma_values.iloc[-1]}, Latest Price: {close_price}")
 
         return prices_df
 
 
+def alt_messate(msg):
+    if msg["k"]["x"] is False:
+        return
+    print(msg)
+
+
 def run_websocket(initial_prices):
     twm = ThreadedWebsocketManager()
-    twm.start()
-    symbol = "BNBBTC"
-
+    symbol = "BNBUSDT"
     print("Starting WebSocket...")
+    twm.start()
     twm.start_kline_socket(
         callback=(lambda msg: process_message(msg, initial_prices)),
         symbol=symbol,
+        interval="1m",
+    )
+    twm.start_kline_socket(
+        callback=(alt_messate),
+        symbol="BTCUSDT",
+        interval="1m",
     )
     print("WebSocket started. Joining...")
     twm.join()

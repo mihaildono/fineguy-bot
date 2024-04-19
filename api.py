@@ -44,5 +44,5 @@ def fetch_historical_data(coin, interval, limit):
 def fetch_intial_data(coins):
     # fetch_balance(coins)
     # fetch_historical_data("BTC", "1h", 1000)
-    historical_closing_prices = fetch_historical_data("BTC", "1h", 100)
+    historical_closing_prices = fetch_historical_data("BNB", "1m", 100)
     return historical_closing_prices
