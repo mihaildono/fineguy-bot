@@ -15,6 +15,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 from backtesting import Backtest, Strategy
 
 
+# TODO: Best to rewrite this as its buggy -> plot crashes and you cannot trade small fractions of a coin
 class TradingStrategy(Strategy):
     def init(self):
         self.ema = self.I(EMA, self.data.Close, 200)

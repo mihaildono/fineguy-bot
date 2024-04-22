@@ -14,6 +14,8 @@ NOTE: Change urls from testnet to production(if you want to use real money)(see 
     python bot.py
 ```
 
+# Trading Strategy
+
 # Project Structure
 1. Bot.py
    - Main entry file for live and mock testing
@@ -21,3 +23,5 @@ NOTE: Change urls from testnet to production(if you want to use real money)(see 
    - Different trading indicators. You can import them to create your own trading strategy
 3. Backtest.py
    - Run this file to test your strategy against custom or predefined period in the past
+3. Thread.py
+   - Handle the data on the fly with threads for socket and polling api

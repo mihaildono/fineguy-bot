@@ -63,6 +63,15 @@ def PSAR(data, af_start=0.02, af_increment=0.02, af_max=0.2):
     return sar
 
 
+# TODO: maybe its better to pass whole dataSet instead of just close price,
+#  so we can calculate other indicators
+def get_trend_indicators(close_data):
+    """Get indicators for a given dataset."""
+    sma = SMA(close_data, 9).iloc[-1]
+    ema = EMA(close_data, 9).iloc[-1]
+    return {"ema": ema, "sma": sma}
+
+
 def get_trend(close_price, ema, psar):
     """Determine the trend based on the EMA and PSAR indicators."""
     is_positive_trend = close_price > ema and close_price > psar

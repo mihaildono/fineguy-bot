@@ -1,76 +1,59 @@
 from binance.streams import ThreadedWebsocketManager
 import pandas as pd
-from trend import SMA
+from trend import get_trend_indicators
 
 
-def process_message(msg, prices_df):
-    """Closure that processes incoming WebSocket messages and updates the SMA calculation."""
+def extract_data_from_message(msg):
+    """Extracts kline data from the message and creates a DataFrame row."""
+    kline = msg["k"]
+    return pd.DataFrame(
+        {
+            "Open": [float(kline["o"])],
+            "High": [float(kline["h"])],
+            "Low": [float(kline["l"])],
+            "Close": [float(kline["c"])],
+            "Volume": [float(kline["v"])],
+            "Number of Trades": [kline["n"]],
+            "Taker Buy Base Asset Volume": [float(kline["V"])],
+            "Taker Buy Quote Asset Volume": [float(kline["Q"])],
+        }
+    )
+
+
+def process_message(msg):
+    """Process incoming WebSocket messages."""
     # Kline is not closed and we exit
-    if msg["k"]["x"] is False:
+    if msg["data"]["k"]["x"] is False:
         return
-    if msg["e"] == "error":
-        print(msg["m"])
+    if msg["data"]["e"] == "error":
+        print(msg["data"]["m"])
     else:
-        print(msg)
-        # TODO: extract this in a function
-        # Extract full kline data from the message
-        kline = msg["k"]
-        close_time = kline["t"]
-        open_price = float(kline["o"])
-        high_price = float(kline["h"])
-        low_price = float(kline["l"])
-        close_price = float(kline["c"])
-        volume = float(kline["v"])
-        number_of_trades = kline["n"]
-        taker_buy_base_asset_volume = float(kline["V"])
-        taker_buy_quote_asset_volume = float(kline["Q"])
-
         # Create a new DataFrame row from the extracted data
-        new_row = pd.DataFrame(
-            {
-                "Open": [open_price],
-                "High": [high_price],
-                "Low": [low_price],
-                "Close": [close_price],
-                "Volume": [volume],
-                "Number of Trades": [number_of_trades],
-                "Taker Buy Base Asset Volume": [taker_buy_base_asset_volume],
-                "Taker Buy Quote Asset Volume": [taker_buy_quote_asset_volume],
-            }
-        )
+        new_row = extract_data_from_message(msg["data"])
 
         # Append to the historical DataFrame and ensure it does not exceed 1000 entries
+        # TODO: Get current dataframe from queue
+        prices_df = pd.DataFrame()
         prices_df = pd.concat([prices_df, new_row], ignore_index=True)
         if len(prices_df) > 1000:
             prices_df = prices_df.iloc[-1000:]  # Keep only the latest 1000 entries
 
-        sma_values = SMA(prices_df["Close"], 9)
-        print(f"Latest SMA: {sma_values.iloc[-1]}, Latest Price: {close_price}")
+        indicators = get_trend_indicators(prices_df["Close"])
+        print(f"Stream: {msg["stream"]}, SMA: {indicators['sma']}, Latest Price: {new_row['Close'].iloc[0]}")
 
         return prices_df
 
 
-def alt_messate(msg):
-    if msg["k"]["x"] is False:
-        return
-    print(msg)
-
-
-# TODO: Add support for multiple coins
-def run_websocket(initial_prices):
+def run_websocket(coins):
+    """Opens WebSocket for the specified coins. This will track the specified coins in real-time.
+    It will also calculate indicators in real time. If you are doing scalp or high frequency trading,
+    use this to calculate specific indicators in real-time. Otherwise poll using the api calls."""
     twm = ThreadedWebsocketManager()
-    symbol = "BNBUSDT"
     print("Starting WebSocket...")
     twm.start()
-    twm.start_kline_socket(
-        callback=(lambda msg: process_message(msg, initial_prices)),
-        symbol=symbol,
-        interval="1m",
-    )
-    twm.start_kline_socket(
-        callback=(alt_messate),
-        symbol="BTCUSDT",
-        interval="1m",
-    )
+    streams = [f"{coin.lower()}@kline_1s" for coin in coins]
+    twm.start_multiplex_socket(process_message, streams)
     print("WebSocket started. Joining...")
     twm.join()
+
+run_websocket(["BNBUSDT", "BTCUSDT"])

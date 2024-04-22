@@ -1,6 +1,6 @@
-from client import binance_client
 import pandas as pd
-from trend import EMA, SMA
+from client import binance_client
+from trend import get_trend_indicators
 
 
 def fetch_balance(coins):
@@ -19,8 +19,7 @@ def fetch_balance(coins):
 
 
 def fetch_historical_data(coin, interval, limit):
-    symbol = f"{coin}USDT"
-    klines = binance_client.get_klines(symbol=symbol, interval=interval, limit=limit)
+    klines = binance_client.get_klines(symbol=coin, interval=interval, limit=limit)
     df = pd.DataFrame(
         klines,
         columns=[
@@ -42,11 +41,13 @@ def fetch_historical_data(coin, interval, limit):
     return df
 
 
-# Add support for multiple coins
-def fetch_intial_data(coins):
+def fetch_indicators_data(coins, interval, limit):
     """Get long term indicators. This function should be used to get the indicators that are not updated in real-time.
     If you want to get real-time indicators, use the websocket instead."""
-    data = fetch_historical_data("BNB", "1m", 100)
-    ema = EMA(data["Close"], 9)
-    sma = SMA(data["Close"], 9)
-    return {"ema": ema.iloc[-1], "sma": sma.iloc[-1], "data": data}
+    data = {}
+    for coin in coins:
+        df = fetch_historical_data(coin, interval, limit)
+        indicators = get_trend_indicators(df["Close"])
+        data.update({coin: {**indicators, "data": df}})
+
+    return data
