@@ -38,6 +38,7 @@ def fetch_historical_data(coin, interval, limit):
         ],
     )
     df["Close"] = pd.to_numeric(df["Close"])
+
     return df
 
 

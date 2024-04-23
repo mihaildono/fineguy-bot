@@ -15,6 +15,10 @@ NOTE: Change urls from testnet to production(if you want to use real money)(see 
 ```
 
 # Trading Strategy
+For now we assume that we are going to have two sets of data:
+1. Real time data, we will calculate this data on the fly from websocket
+2. Periodical long term data. This will be fetched on longer intervals,
+   so we dont need to aggregate realtime data
 
 # Project Structure
 1. Bot.py
@@ -24,4 +28,4 @@ NOTE: Change urls from testnet to production(if you want to use real money)(see 
 3. Backtest.py
    - Run this file to test your strategy against custom or predefined period in the past
 3. Thread.py
-   - Handle the data on the fly with threads for socket and polling api
+   - Manage threads and data from diffrent data sources

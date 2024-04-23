@@ -1,14 +1,15 @@
 from binance_websocket import run_websocket
-from api import fetch_indicators_data
+from thread import start_thread
 
 
 # TODO: Add live charting
 def run_bot():
     """Run the trading bot."""
     # Modify this list with coins of your choice
-    trading_coins = ["BNB"]
-    initial_data = fetch_indicators_data(trading_coins, "1m", 100)
-    run_websocket(trading_coins)
+    coins = ["BTCUSDT", "ETHUSDT"]
+    start_thread(coins)
+    run_websocket(coins)  # must be run second, or it blocks code
 
 
-run_bot()
+if __name__ == "__main__":
+    run_bot()

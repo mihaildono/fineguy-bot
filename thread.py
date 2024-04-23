@@ -1,71 +1,73 @@
-from queue import Queue
 import threading
 import time
-import websocket
+import pandas as pd
+from trade import trading_strategy
+from api import fetch_historical_data
+
+# Shared data structure with locking mechanism
+data_lock = threading.Lock()
+coin_data = (
+    {}
+)  # Dictionary to hold data for each coin: {'BTC': {'historical': DataFrame, 'realtime': DataFrame}, ...}
 
 
-def data_fetcher(coins, queue, interval):
-    """Thread that periodically fetches data and ensures only the latest data is in the queue."""
+def update_data(coin, source, new_data):
+    """Update the data for a specific coin and source."""
+    with data_lock:
+        if coin not in coin_data:
+            coin_data[coin] = {"historical": pd.DataFrame(), "realtime": pd.DataFrame()}
+
+        # Concatenate new data to the appropriate DataFrame, keeping only the latest data
+        coin_data[coin][source] = pd.concat(
+            [coin_data[coin][source], new_data], ignore_index=True
+        )
+        if len(coin_data[coin][source]) > 1000:  # Limit size to last 1000 entries
+            coin_data[coin][source] = coin_data[coin][source].iloc[-1000:]
+
+
+def get_latest_data(coin, source):
+    """Safely fetch the latest data for a specific coin and source."""
+    with data_lock:
+        return coin_data.get(coin, {}).get(source, pd.DataFrame())
+
+
+# NOTE: IMPROVEMENT: You can pass dict with indicators and timeframes
+def poll_periodic_data(coins, interval, limit, fetch_interval):
+    """Fetches historical data for a coin at regular intervals and updates the shared data structure."""
+    while True:
+        for coin in coins:
+            print(f"Fetching historical data for {coin}...")
+            historical_data = fetch_historical_data(coin, interval, limit)
+            update_data(
+                coin, "historical", historical_data
+            )  # Assuming historical_data is structured correctly
+        time.sleep(fetch_interval)
+
+
+def analyze_data():
+    """Analyzes data from the shared dictionary for trading decisions."""
     try:
         while True:
-            data = fetch_intial_data(coins)
-            with queue.mutex:  # Lock the queue to clear and insert atomically
-                queue.queue.clear()
-            queue.put(data)
-            time.sleep(interval)
+            for coin, sources in coin_data.items():
+                # TODO: Prepare data structure for strategy
+                print(f"Analyzing data for {coin}...")
+                for source, data_df in sources.items():
+                    latest_data = get_latest_data(coin, source)
+                    if not latest_data.empty and len(latest_data) > 9:
+                        print("foo")
+                        # trading_strategy(latest_data, coin)
+            time.sleep(5)  # Check every 60 seconds
     except KeyboardInterrupt:
-        print("Periodic data fetching stopped.")
+        print("Analysis stopped manually.")
 
 
-def websocket_data_handler(ws, message):
-    """WebSocket callback to handle incoming messages."""
-    data = process_websocket_message(
-        message
-    )  # Assume this function parses and returns the data
-    with data_queue.mutex:
-        data_queue.queue.clear()
-    data_queue.put(data)
+def start_thread(coins):
+    """Starts the threads for fetching periodical data and processing it."""
+    print("Starting threads...")
+    threading.Thread(
+        target=poll_periodic_data, args=(coins, "4h", 1000, 60 * 60 * 4)
+    ).start()
 
-
-def start_websocket_client(queue, url):
-    """Starts a WebSocket client that connects to the given URL and handles incoming data."""
-    ws = websocket.WebSocketApp(url, on_message=websocket_data_handler)
-    ws.run_forever()
-
-
-def main_bot_function(queue):
-    """Main function that processes the latest data from the queue."""
-    try:
-        while True:
-            data = queue.get()
-            process_data(data)
-            queue.task_done()
-    except KeyboardInterrupt:
-        print("Bot has been stopped manually.")
-
-
-def process_data(data):
-    # Process the data
-    print("Processing data:", data)
-    # Add your actual processing logic here
-
-
-# Setting up the threads and queue
-data_queue = Queue()
-coins = "BTC"
-interval = 60
-websocket_url = "wss://example.com/websocket"  # URL to your WebSocket server
-
-# Thread for fetching data periodically
-fetch_thread = threading.Thread(target=data_fetcher, args=(coins, data_queue, interval))
-fetch_thread.start()
-
-# Thread for WebSocket connection
-websocket_thread = threading.Thread(
-    target=start_websocket_client, args=(data_queue, websocket_url)
-)
-websocket_thread.start()
-
-# Main bot thread
-bot_thread = threading.Thread(target=main_bot_function, args=(data_queue,))
-bot_thread.start()
+    print("Starting analysis thread...")
+    analyze_thread = threading.Thread(target=analyze_data)
+    analyze_thread.start()

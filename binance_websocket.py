@@ -1,6 +1,6 @@
 from binance.streams import ThreadedWebsocketManager
 import pandas as pd
-from trend import get_trend_indicators
+from thread import update_data
 
 
 def extract_data_from_message(msg):
@@ -28,26 +28,17 @@ def process_message(msg):
     if msg["data"]["e"] == "error":
         print(msg["data"]["m"])
     else:
-        # Create a new DataFrame row from the extracted data
+        print(f"Processing message for {msg['stream']}...")
+        coin = msg["stream"].split("@")[0].upper()  # Extract coin from the stream name
         new_row = extract_data_from_message(msg["data"])
-
-        # Append to the historical DataFrame and ensure it does not exceed 1000 entries
-        # TODO: Get current dataframe from queue
-        prices_df = pd.DataFrame()
-        prices_df = pd.concat([prices_df, new_row], ignore_index=True)
-        if len(prices_df) > 1000:
-            prices_df = prices_df.iloc[-1000:]  # Keep only the latest 1000 entries
-
-        indicators = get_trend_indicators(prices_df["Close"])
-        print(f"Stream: {msg["stream"]}, SMA: {indicators['sma']}, Latest Price: {new_row['Close'].iloc[0]}")
-
-        return prices_df
+        update_data(coin, "realtime", new_row)
 
 
 def run_websocket(coins):
     """Opens WebSocket for the specified coins. This will track the specified coins in real-time.
     It will also calculate indicators in real time. If you are doing scalp or high frequency trading,
-    use this to calculate specific indicators in real-time. Otherwise poll using the api calls."""
+    use this to calculate specific indicators in real-time. Otherwise poll using the api calls.
+    """
     twm = ThreadedWebsocketManager()
     print("Starting WebSocket...")
     twm.start()
@@ -55,5 +46,3 @@ def run_websocket(coins):
     twm.start_multiplex_socket(process_message, streams)
     print("WebSocket started. Joining...")
     twm.join()
-
-run_websocket(["BNBUSDT", "BTCUSDT"])
