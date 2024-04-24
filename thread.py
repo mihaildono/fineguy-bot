@@ -1,7 +1,7 @@
 import threading
 import time
 import pandas as pd
-from trade import trading_strategy
+from trade import live_strategy_adapter
 from api import fetch_historical_data
 
 # Shared data structure with locking mechanism
@@ -25,10 +25,10 @@ def update_data(coin, source, new_data):
             coin_data[coin][source] = coin_data[coin][source].iloc[-1000:]
 
 
-def get_latest_data(coin, source):
+def get_latest_data(coin):
     """Safely fetch the latest data for a specific coin and source."""
     with data_lock:
-        return coin_data.get(coin, {}).get(source, pd.DataFrame())
+        return coin_data.get(coin, {})
 
 
 # NOTE: IMPROVEMENT: You can pass dict with indicators and timeframes
@@ -49,13 +49,12 @@ def analyze_data():
     try:
         while True:
             for coin, sources in coin_data.items():
-                # TODO: Prepare data structure for strategy
+                # Skip if not populated yet
+                if sources["historical"].empty or sources["realtime"].empty:
+                    continue
                 print(f"Analyzing data for {coin}...")
-                for source, data_df in sources.items():
-                    latest_data = get_latest_data(coin, source)
-                    if not latest_data.empty and len(latest_data) > 9:
-                        print("foo")
-                        # trading_strategy(latest_data, coin)
+                latest_data = get_latest_data(coin)
+                live_strategy_adapter(latest_data, coin)
             time.sleep(5)  # Check every 60 seconds
     except KeyboardInterrupt:
         print("Analysis stopped manually.")

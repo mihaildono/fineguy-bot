@@ -2,7 +2,7 @@ from binance_websocket import run_websocket
 from thread import start_thread
 
 
-# TODO: Add live charting
+# TODO: After strategy is implemented, change timers and intervals
 def run_bot():
     """Run the trading bot."""
     # Modify this list with coins of your choice

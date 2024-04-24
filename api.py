@@ -48,7 +48,7 @@ def fetch_indicators_data(coins, interval, limit):
     data = {}
     for coin in coins:
         df = fetch_historical_data(coin, interval, limit)
-        indicators = get_trend_indicators(df["Close"])
+        indicators = get_trend_indicators(df)
         data.update({coin: {**indicators, "data": df}})
 
     return data
